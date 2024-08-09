@@ -7,8 +7,10 @@ from flask_cors import CORS
 from PIL import Image as PILImage
 from io import BytesIO
 from sqlalchemy.orm import sessionmaker
-from mymodels import Image as ImageModel
+from mymodels import Image
 from connect import engine
+from crud import save_image_to_db
+
 
 
 app = Flask(__name__)
@@ -109,7 +111,7 @@ def store():
 # バックエンドの画像をフロントに送信する
 @app.route('/getimage', methods=['GET'])
 def getimage():
-    img = Image.open("sendingimage/CEO.jpeg")
+    img = PILImage.open("sendingimage/CEO.jpeg")
     
     # RGBA の場合、RGB に変換
     if img.mode == 'RGBA':
@@ -143,21 +145,12 @@ def upload_image():
         img.save(img_byte_arr, format='JPEG')
         img_byte_arr = img_byte_arr.getvalue()
 
-        # SQLAlchemyのセッションを作成
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
-        # 画像データをImageモデルに保存
-        new_image = ImageModel(image=img_byte_arr)
         try:
-            session.add(new_image)
-            session.commit()
-            return jsonify({'message': 'Image uploaded and saved successfully', 'image_id': new_image.id}), 200
+            # 画像データをDBに保存
+            image_id = save_image_to_db(img_byte_arr)
+            return jsonify({'message': 'Image uploaded and saved successfully', 'image_id': image_id}), 200
         except Exception as e:
-            session.rollback()
             return jsonify({'error': str(e)}), 500
-        finally:
-            session.close()
 
 
 

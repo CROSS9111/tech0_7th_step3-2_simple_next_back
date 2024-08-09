@@ -10,6 +10,8 @@ import pandas as pd
 
 from connect import engine
 from mymodels import Location
+from mymodels import Image as ImageModel
+
 
 def myinsert(mymodel, values):
     # セッション構築用のSessionクラスを作成
@@ -50,6 +52,25 @@ def myload(mymodel):
         # 結果をリストに変換
         rows = result.scalars().all()
         return rows
+    finally:
+        # セッションを閉じる
+        session.close()
+
+def save_image_to_db(image_data):
+    # セッション構築用のSessionクラスを作成
+    Session = sessionmaker(bind=engine)
+    # セッションのインスタンスを作成
+    session = Session()
+
+    # 画像データをImageモデルに保存
+    new_image = ImageModel(image=image_data)
+    try:
+        session.add(new_image)
+        session.commit()
+        return new_image.id  # 画像のIDを返す
+    except Exception as e:
+        session.rollback()
+        raise e  # エラーを再度投げて、呼び出し元でハンドリング
     finally:
         # セッションを閉じる
         session.close()
