@@ -4,8 +4,11 @@ from flask import Flask, request, jsonify, send_file
 import crud, mymodels
 import os
 from flask_cors import CORS
-from PIL import Image
+from PIL import Image as PILImage
 from io import BytesIO
+from sqlalchemy.orm import sessionmaker
+from mymodels import Image as ImageModel
+from connect import engine
 
 
 app = Flask(__name__)
@@ -117,7 +120,6 @@ def getimage():
     img_io.seek(0)
     return send_file(img_io, mimetype="image/jpeg")
 
-
 # 画像をフロントから受け取る
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -130,11 +132,32 @@ def upload_image():
         return jsonify({'error': 'No selected file'}), 400
     
     if file:
-        filename = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(filename)
-        return jsonify({'message': 'File uploaded successfully', 'filename': file.filename}), 200
+        # 画像を読み込み
+        img = PILImage.open(file.stream)
 
+        # 画像がRGBAモードの場合はRGBに変換
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
 
+        img_byte_arr = BytesIO()
+        img.save(img_byte_arr, format='JPEG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # SQLAlchemyのセッションを作成
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        # 画像データをImageモデルに保存
+        new_image = ImageModel(image=img_byte_arr)
+        try:
+            session.add(new_image)
+            session.commit()
+            return jsonify({'message': 'Image uploaded and saved successfully', 'image_id': new_image.id}), 200
+        except Exception as e:
+            session.rollback()
+            return jsonify({'error': str(e)}), 500
+        finally:
+            session.close()
 
 
 

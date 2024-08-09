@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float,Integer
+from sqlalchemy import Column, String, Float,Integer,LargeBinary
 from sqlalchemy.orm import declarative_base
 import uuid
 
@@ -21,3 +21,10 @@ class Product_master(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     product_code = Column(Integer, nullable=False)
     product_name = Column(String, nullable=False)
+
+# Imageモデルを定義
+class Image(Base):
+    __tablename__ = 'images'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    # BLOBデータを格納するカラム
+    image = Column(LargeBinary, nullable=False)
