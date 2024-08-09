@@ -1,9 +1,12 @@
 # 起動コマンド
 # flask run --debugger --reload
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import crud, mymodels
 import os
 from flask_cors import CORS
+from PIL import Image
+from io import BytesIO
+
 
 app = Flask(__name__)
 CORS(app)
@@ -99,6 +102,21 @@ def store():
             product_name = product.product_name
             break
     return jsonify({"name": product_name})
+
+# バックエンドの画像をフロントに送信する
+@app.route('/getimage', methods=['GET'])
+def getimage():
+    img = Image.open("sendingimage/CEO.jpeg")
+    
+    # RGBA の場合、RGB に変換
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+    
+    img_io = BytesIO()
+    img.save(img_io, "JPEG", quality=70)
+    img_io.seek(0)
+    return send_file(img_io, mimetype="image/jpeg")
+
 
 # 画像をフロントから受け取る
 @app.route('/upload', methods=['POST'])
