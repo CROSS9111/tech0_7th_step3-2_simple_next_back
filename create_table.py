@@ -3,7 +3,7 @@ import platform
 print(platform.uname())
 
 # mymodelsからBaseとLocationをインポート
-from mymodels import Base, Location
+from mymodels import Base, Location, Product_master
 # connectモジュールからengineをインポート
 from connect import engine
 
