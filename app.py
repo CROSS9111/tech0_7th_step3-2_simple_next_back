@@ -1,6 +1,6 @@
 # 起動コマンド
 # flask run --debugger --reload
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, Response
 import crud, mymodels
 import os
 from flask_cors import CORS
@@ -11,8 +11,6 @@ from mymodels import Image
 from connect import engine
 from crud import save_image_to_db
 
-
-
 app = Flask(__name__)
 CORS(app)
 
@@ -21,7 +19,7 @@ UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# ダミーデータ #
+############### ダミーデータ ###############
 test_location = [
     {"id": "test_user1", "latitude": 35.6895, "longitude": 139.6917},
     {"id": "test_user2", "latitude": 34.0522, "longitude": -118.2437}
@@ -33,7 +31,7 @@ test_product_code = [
     {"id": "0003", "product_code": 34567, "product_name": "tech2"},
     {"id": "0004", "product_code": 45678, "product_name": "tech3"},
 ]
-##############
+##########################################
 
 # flask起動時にアクセスすると表示される
 @app.route("/")
@@ -92,6 +90,10 @@ def delete_db():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+#####################################################
+##########     商品コードから商品名     ################
+#####################################################
 # Product_masterのデータを読み、フロントから送られてきた商品コードとあっている商品名をレスポンスする
 @app.route("/store", methods=["POST"])
 def store():
@@ -108,6 +110,11 @@ def store():
             break
     return jsonify({"name": product_name})
 
+
+
+#####################################################
+##########       画像のやり取り        ################
+#####################################################
 # バックエンドの画像をフロントに送信する
 @app.route('/getimage', methods=['GET'])
 def getimage():
@@ -152,7 +159,50 @@ def upload_image():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+#####################################################
+##########         Basic認証          ################
+#####################################################
+# 認証ロジック　範囲ごとに分けている
+def check_auth(username, password):
+    # シンプルな認証ロジック
+    if username == 'admin' and password == 'adminpass':
+        return 'admin'
+    elif username == 'user' and password == 'userpass':
+        return 'user'
+    return None
 
+# 認証が不適合だった場合、HTTP認証のヘッダー(WWW-Authenticate)を含めて、認証が必要なことをクライアント側に通知する(401 unauthorized)
+# WWW-Authenticate:アクセスに必要な認証の種類などを知らせる機能を持つ
+def authenticate(realm):
+    return Response(
+        'Could not verify your access level for that URL.\n'
+        'You have to login with proper credentials', 401,
+        {'WWW-Authenticate': f'Basic realm="{realm}"'}
+    )
+
+@app.route('/api/admin', methods=['GET'])
+def admin_page():
+    # Base64デコード
+    auth = request.authorization
+    if not auth or check_auth(auth.username, auth.password) != 'admin':
+        return authenticate('Admin Area')
+    return jsonify({"message": "Welcome to the Admin Area!"})
+
+@app.route('/api/user', methods=['GET'])
+def user_page():
+    # Base64デコード
+    auth = request.authorization
+    if not auth or check_auth(auth.username, auth.password) != 'user':
+        return authenticate('User Area')
+    return jsonify({"message": "Welcome to the User Area!"})
+
+# 認証情報がないため、必ず401となる。
+@app.route('/api/products', methods=['GET'])
+def products_page():
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return authenticate('Products Area')
+    return jsonify({"message": "Welcome to the Products Area!"})
 
 if __name__ == "__main__":
     app.run(debug=True)
